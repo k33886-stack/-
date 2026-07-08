@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>咪咪的每日用藥紀錄表 (穩定單機版)</title>
+    <title>咪咪的每日用藥紀錄表 (智慧跨設備同步版)</title>
     <style>
         :root {
             --primary-color: #ff9999;
@@ -49,9 +49,9 @@
 
         .sync-status {
             font-size: 0.85rem;
-            color: #2196F3;
+            color: #4caf50;
             font-weight: bold;
-            background: #e3f2fd;
+            background: #e8f5e9;
             padding: 4px 12px;
             border-radius: 20px;
             display: inline-block;
@@ -266,7 +266,7 @@
 <div class="container">
     <h1>🐱 咪咪的每日用藥紀錄表</h1>
     <div class="sync-bar">
-        <div class="sync-status" id="syncStatus">📱 本機獨立儲存模式 (極速穩定版)</div>
+        <div class="sync-status" id="syncStatus">☁️ 雲端同步就緒</div>
     </div>
     <div class="date-display" id="currentDate">今日日期：</div>
 
@@ -279,13 +279,13 @@
             <div class="slot" id="med1-morning">
                 <span class="slot-time">早上 ☀️</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveLocalState()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med1-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med1-night">
                 <span class="slot-time">晚上 🌙</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveLocalState()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med1-night')">吃藥了</button>
             </div>
         </div>
@@ -300,19 +300,19 @@
             <div class="slot" id="med2-07">
                 <span class="slot-time">早上 07:00 ⏰</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveLocalState()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med2-07')">吃藥了</button>
             </div>
             <div class="slot" id="med2-15">
                 <span class="slot-time">下午 15:00 ⏰</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveLocalState()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med2-15')">吃藥了</button>
             </div>
             <div class="slot" id="med2-23">
                 <span class="slot-time">晚上 23:00 ⏰</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveLocalState()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med2-23')">吃藥了</button>
             </div>
         </div>
@@ -327,7 +327,7 @@
             <div class="slot" id="med3-night">
                 <span class="slot-time">晚上 🌙</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveLocalState()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med3-night')">吃藥了</button>
             </div>
         </div>
@@ -342,13 +342,13 @@
             <div class="slot" id="med4-morning">
                 <span class="slot-time">早上 ☀️</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveLocalState()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med4-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med4-night">
                 <span class="slot-time">晚上 🌙</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveLocalState()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med4-night')">吃藥了</button>
             </div>
         </div>
@@ -360,7 +360,7 @@
 
     <div class="history-card">
         <div class="history-title">
-            <span>📅 歷史用藥日誌</span>
+            <span>📅 歷史用藥日誌 (跨設備同步版)</span>
             <button class="clear-history-btn" onclick="clearHistory()">清空歷史</button>
         </div>
         <ul class="history-list" id="historyList"></ul>
@@ -368,38 +368,77 @@
 </div>
 
 <script>
+    const API_URL = "https://mimi-meds-default-rtdb.asia-southeast1.firebasedatabase.app/mimi_shared_v3.json";
+
     const today = new Date();
     const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
     document.getElementById('currentDate').innerText = `今日日期：${dateString}`;
 
-    let localHistory = [];
+    let windowCloudHistory = [];
+    let isLocked = false; // 🔒 5秒智慧防沖刷防禦鎖
 
     window.onload = function() {
-        loadLocalData();
+        loadCloudData(true); // 首次打開網頁強制載入一次
         setupLongPress();
+        
+        // 每 4 秒自動同步背景資料
+        setInterval(() => {
+            loadCloudData(false); 
+        }, 4000);
     };
 
-    function loadLocalData() {
-        // 從本機記憶體讀取狀態
-        const savedToday = localStorage.getItem('mimi_today_state');
-        const todayState = savedToday ? JSON.parse(savedToday) : {};
-        
-        const slots = document.querySelectorAll('.slot');
-        slots.forEach(slot => {
-            if (todayState[slot.id] && todayState[slot.id].taken) {
-                setSlotAsTaken(slot.id, todayState[slot.id].time);
-            } else {
-                setSlotAsReset(slot.id);
-            }
-        });
+    function loadCloudData(isFirstTime) {
+        // 如果現在處於「上傳後的5秒冷卻期」，絕對禁止下載，避免蓋掉剛點好的綠燈
+        if (isLocked && !isFirstTime) return;
 
-        // 讀取歷史日誌
-        const savedHistory = localStorage.getItem('mimi_history_state');
-        localHistory = savedHistory ? JSON.parse(savedHistory) : [];
-        updateHistoryDisplay(localHistory);
+        showStatus("🔄 雲端同步中...");
+        fetch(API_URL)
+        .then(res => res.json())
+        .then(data => {
+            // 下載回來的瞬間，如果剛好進了冷卻鎖，一樣放棄處理，全面以妳剛點擊的畫面為主
+            if (isLocked && !isFirstTime) return;
+
+            if (data) {
+                const todayState = data.today || {};
+                windowCloudHistory = data.history || [];
+                
+                const slots = document.querySelectorAll('.slot');
+                slots.forEach(slot => {
+                    const serverIsTaken = !!(todayState[slot.id] && todayState[slot.id].taken);
+                    const serverTime = serverIsTaken ? todayState[slot.id].time : '';
+                    
+                    const localIsTaken = slot.classList.contains('taken');
+                    const localTime = slot.querySelector('.time-input').value;
+
+                    // 智慧防刷：只有當雲端資料跟目前畫面「真的不一樣」時，才更動畫面
+                    if (serverIsTaken !== localIsTaken || serverTime !== localTime) {
+                        if (serverIsTaken) {
+                            setSlotAsTaken(slot.id, serverTime);
+                        } else {
+                            setSlotAsReset(slot.id);
+                        }
+                    }
+                });
+                updateHistoryDisplay(windowCloudHistory);
+                showStatus("✓ 雲端資料已是最新");
+            }
+        })
+        .catch(() => {
+            showStatus("⚠️ 網路重連中...");
+        });
     }
 
-    function saveLocalState() {
+    function saveCloudData() {
+        // 觸發寫入，立刻開啟「5秒智慧防沖刷防禦鎖」
+        isLocked = true;
+        
+        // 5 秒後解除鎖定，讓網頁回復自動下載
+        setTimeout(() => {
+            isLocked = false;
+        }, 5000);
+
+        showStatus("📤 正在同步全家設備...");
+
         const slots = document.querySelectorAll('.slot');
         const todayState = {};
         slots.forEach(slot => {
@@ -408,7 +447,18 @@
             todayState[slot.id] = { taken: isTaken, time: isTaken ? timeVal : '' };
         });
 
-        localStorage.setItem('mimi_today_state', JSON.stringify(todayState));
+        const payload = { today: todayState, history: windowCloudHistory };
+
+        fetch(API_URL, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        })
+        .then(() => {
+            showStatus("✓ 雲端同步成功");
+        })
+        .catch(() => {
+            showStatus("❌ 同步失敗");
+        });
     }
 
     function toggleMed(slotId) {
@@ -418,8 +468,10 @@
         const now = new Date();
         const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+        // 畫面上秒變綠色
         setSlotAsTaken(slotId, currentTime);
-        saveLocalState();
+        // 立刻送上雲端
+        saveCloudData();
     }
 
     function setSlotAsTaken(slotId, timeValue) {
@@ -458,7 +510,7 @@
     function cancelMed(slotId) {
         if (confirm('確定要取消此時段的服藥紀錄嗎？')) {
             setSlotAsReset(slotId);
-            saveLocalState();
+            saveCloudData();
         }
     }
 
@@ -482,19 +534,13 @@
             detailsText += `• ${medName}: ${medDetails.length > 0 ? medDetails.join(', ') : '未服藥'}<br>`;
         });
 
-        if (confirm(`確定要結算今日用藥嗎？\n紀錄會儲存在這台手機的歷史日誌中。`)) {
-            // 寫入歷史
-            localHistory.unshift({ date: dateString, score: `${takenCount}/${totalCount}`, details: detailsText });
-            localStorage.setItem('mimi_history_state', JSON.stringify(localHistory));
+        if (confirm(`確定要結算今日用藥嗎？\n歷史紀錄會永久儲存並同步至所有設備。`)) {
+            windowCloudHistory.unshift({ date: dateString, score: `${takenCount}/${totalCount}`, details: detailsText });
             
-            // 重置畫面
             const slots = document.querySelectorAll('.slot');
             slots.forEach(slot => setSlotAsReset(slot.id));
             
-            // 清除今日狀態
-            localStorage.removeItem('mimi_today_state');
-            
-            loadLocalData();
+            saveCloudData();
         }
     }
 
@@ -513,11 +559,14 @@
     }
 
     function clearHistory() {
-        if (confirm('確定要清空這台設備上所有的歷史紀錄嗎？')) {
-            localHistory = [];
-            localStorage.setItem('mimi_history_state', JSON.stringify([]));
-            updateHistoryDisplay([]);
+        if (confirm('確定要清空所有的歷史紀錄嗎？')) {
+            windowCloudHistory = [];
+            saveCloudData();
         }
+    }
+
+    function showStatus(text) {
+        document.getElementById('syncStatus').innerText = text;
     }
 </script>
 
