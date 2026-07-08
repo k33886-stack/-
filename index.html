@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>咪咪的每日用藥紀錄表 (全家聯動版)</title>
+    <title>咪咪的每日用藥紀錄表 (獨立雲端版)</title>
     <style>
         :root {
             --primary-color: #ff9999;
@@ -60,10 +60,15 @@
             background: #ff6b6b;
             color: white;
             border: none;
-            padding: 3px 10px;
+            padding: 4px 12px;
             font-size: 0.8rem;
             border-radius: 10px;
             cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.95);
         }
 
         .date-display {
@@ -276,7 +281,7 @@
     <h1>🐱 咪咪的每日用藥紀錄表</h1>
     <div class="sync-bar">
         <div class="sync-status" id="syncStatus">☁️ 雲端同步中...</div>
-        <button class="refresh-btn" onclick="loadCloudData()">🔄 手動刷新</button>
+        <button class="refresh-btn" onclick="loadCloudData()">🔄 同步刷新</button>
     </div>
     <div class="date-display" id="currentDate">今日日期：</div>
 
@@ -378,8 +383,8 @@
 </div>
 
 <script>
-    // 使用免費穩定的專屬大保險箱通道
-    const API_URL = "https://kvdb.io/MN7Sgsh66wz6gYVv7K7M3H/mimi_meds_shared_2026";
+    // 💡 幫咪咪更換全新的專屬獨立大保險箱金鑰，徹底隔絕外部干擾
+    const API_URL = "https://kvdb.io/MN7Sgsh66wz6gYVv7K7M3H/mimi_exclusive_db_2026";
 
     const today = new Date();
     const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
@@ -388,11 +393,10 @@
     window.onload = function() {
         loadCloudData();
         setupLongPress();
-        // 每 15 秒自動在背景重新整理，減少不同步的時間差
-        setInterval(loadCloudData, 15000); 
+        // 每 10 秒就在背後輕量重整一次，保持兩邊畫面絕對一致
+        setInterval(loadCloudData, 10000); 
     };
 
-    // 從雲端抓資料
     function loadCloudData() {
         showStatus("☁️ 雲端同步中...");
         fetch(API_URL)
@@ -413,24 +417,16 @@
                 });
                 window.cloudHistory = data.history || [];
                 updateHistoryDisplay(window.cloudHistory);
-                showStatus("✓ 雲端資料已是最新");
+                showStatus("✓ 雲端已同步");
             }
         })
         .catch(() => {
-            // 雲端連不上時的本地備份
-            const localState = JSON.parse(localStorage.getItem('mimiMedRecordsTime版')) || {};
-            for (const id in localState) {
-                if (localState[id].taken) setSlotAsTaken(id, localState[id].time);
-            }
-            window.cloudHistory = JSON.parse(localStorage.getItem('mimiMedHistoryTime版')) || [];
-            updateHistoryDisplay(window.cloudHistory);
-            showStatus("⚠️ 網路延遲，目前為本地顯示");
+            showStatus("⚠️ 連線中，可點擊同步刷新");
         });
     }
 
-    // 存回雲端
     function saveCloudState() {
-        showStatus("📤 正在同步到家人的手機...");
+        showStatus("📤 正在同步全家設備...");
         const slots = document.querySelectorAll('.slot');
         const todayState = {};
         slots.forEach(slot => {
@@ -439,7 +435,6 @@
             todayState[slot.id] = { taken: isTaken, time: isTaken ? timeVal : '' };
         });
 
-        localStorage.setItem('mimiMedRecordsTime版', JSON.stringify(todayState));
         const payload = { today: todayState, history: window.cloudHistory || [] };
 
         fetch(API_URL, {
@@ -447,7 +442,7 @@
             body: JSON.stringify(payload)
         })
         .then(() => showStatus("✓ 全家同步成功"))
-        .catch(() => showStatus("❌ 同步失敗，請檢查網路"));
+        .catch(() => showStatus("❌ 同步失敗"));
     }
 
     function toggleMed(slotId) {
@@ -495,7 +490,7 @@
     }
 
     function cancelMed(slotId) {
-        if (confirm('確定要取消此時段的服藥紀錄（變回未吃藥）嗎？\n這會同時更新家人的手機畫面喔！')) {
+        if (confirm('確定要取消此時段的服藥紀錄嗎？')) {
             setSlotAsReset(slotId);
             saveCloudState();
         }
@@ -521,12 +516,10 @@
             detailsText += `• ${medName}: ${medDetails.length > 0 ? medDetails.join(', ') : '未服藥'}<br>`;
         });
 
-        if (confirm(`確定要結算今日用藥嗎？\n全家手機的畫面都會一起清空並存入歷史喔！`)) {
+        if (confirm(`確定要結算今日用藥嗎？`)) {
             if(!window.cloudHistory) window.cloudHistory = [];
             window.cloudHistory.unshift({ date: dateString, score: `${takenCount}/${totalCount}`, details: detailsText });
             
-            localStorage.setItem('mimiMedHistoryTime版', JSON.stringify(window.cloudHistory));
-
             const slots = document.querySelectorAll('.slot');
             slots.forEach(slot => setSlotAsReset(slot.id));
             
@@ -549,9 +542,8 @@
     }
 
     function clearHistory() {
-        if (confirm('確定要清空全雲端的詳細用藥紀錄嗎？家人那邊也會不見喔！')) {
+        if (confirm('確定要清空全雲端的歷史紀錄嗎？')) {
             window.cloudHistory = [];
-            localStorage.removeItem('mimiMedHistoryTime版');
             saveCloudState();
         }
     }
