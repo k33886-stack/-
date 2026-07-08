@@ -239,7 +239,7 @@
     <div class="med-card" data-med-name="癲癇+鉀+維他命">
         <div class="med-title">1. 癲癇藥 + 鉀離子 + 維他命 (早晚各1顆)</div>
         <div class="med-img-container">
-            <img src="med1.jpg.heic" alt="藥物照片" class="med-img" onerror="this.src='med1.jpg.HEIC'; this.onerror=function(){this.style.display='none';};">
+            <img src="med1.jpg" alt="藥物照片" class="med-img" onerror="this.src='med1.png'; this.onerror=function(){this.style.display='none';};">
         </div>
         <div class="time-slots">
             <div class="slot" id="med1-morning">
@@ -258,7 +258,7 @@
     <div class="med-card" data-med-name="癲癇+腸胃蠕動">
         <div class="med-title">2. 癲癇藥 + 腸胃蠕動 (每8小時1顆)</div>
         <div class="med-img-container">
-            <img src="med2.jpg.heic" alt="藥物照片" class="med-img" onerror="this.style.display='none';">
+            <img src="med2.jpg" alt="藥物照片" class="med-img" onerror="this.src='med2.png'; this.onerror=function(){this.style.display='none';};">
         </div>
         <div class="time-slots">
             <div class="slot" id="med2-07">
@@ -282,7 +282,7 @@
     <div class="med-card" data-med-name="高血壓藥">
         <div class="med-title">3. 高血壓藥 (晚上1顆)</div>
         <div class="med-img-container">
-            <img src="med3.jpg.heic" alt="藥物照片" class="med-img" onerror="this.style.display='none';">
+            <img src="med3.jpg" alt="藥物照片" class="med-img" onerror="this.src='med3.png'; this.onerror=function(){this.style.display='none';};">
         </div>
         <div class="time-slots">
             <div class="slot" id="med3-night">
@@ -296,7 +296,7 @@
     <div class="med-card" data-med-name="中藥">
         <div class="med-title">4. 中藥 (早晚各1包)</div>
         <div class="med-img-container">
-            <img src="med4.jpg.HEIC" alt="藥物照片" class="med-img" onerror="this.src='med4.jpg.heic'; this.onerror=function(){this.style.display='none';};">
+            <img src="med4.jpg" alt="藥物照片" class="med-img" onerror="this.src='med4.png'; this.onerror=function(){this.style.display='none';};">
         </div>
         <div class="time-slots">
             <div class="slot" id="med4-morning">
@@ -362,6 +362,7 @@
         }
     }
 
+    // 儲存狀態
     function saveState() {
         const slots = document.querySelectorAll('.slot');
         const state = {};
@@ -376,6 +377,7 @@
         localStorage.setItem('mimiMedRecordsTime版', JSON.stringify(state));
     }
 
+    // 結算並重置
     function archiveAndReset() {
         const cards = document.querySelectorAll('.med-card');
         let detailsText = '';
