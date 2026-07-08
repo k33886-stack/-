@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>咪咪的每日用藥紀錄表 (雲端同步版)</title>
+    <title>咪咪的每日用藥紀錄表 (全家聯動版)</title>
     <style>
         :root {
             --primary-color: #ff9999;
@@ -42,12 +42,28 @@
             margin-bottom: 5px;
         }
 
+        .sync-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
         .sync-status {
-            text-align: center;
             font-size: 0.85rem;
             color: #4caf50;
-            margin-bottom: 10px;
             font-weight: bold;
+        }
+
+        .refresh-btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 3px 10px;
+            font-size: 0.8rem;
+            border-radius: 10px;
+            cursor: pointer;
         }
 
         .date-display {
@@ -80,7 +96,7 @@
 
         .med-img {
             max-width: 100%;
-            max-height: 180px;
+            max-height: 220px;
             border-radius: 8px;
             border: 2px solid white;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -139,6 +155,8 @@
             text-align: center;
             width: 80px;
             display: none;
+            background: #fff;
+            color: #333;
         }
 
         .slot.taken .time-input {
@@ -256,7 +274,10 @@
 
 <div class="container">
     <h1>🐱 咪咪的每日用藥紀錄表</h1>
-    <div class="sync-status" id="syncStatus">☁️ 雲端連線中...</div>
+    <div class="sync-bar">
+        <div class="sync-status" id="syncStatus">☁️ 雲端同步中...</div>
+        <button class="refresh-btn" onclick="loadCloudData()">🔄 手動刷新</button>
+    </div>
     <div class="date-display" id="currentDate">今日日期：</div>
 
     <div class="med-card" data-med-name="癲癇+鉀+維他命">
@@ -357,9 +378,8 @@
 </div>
 
 <script>
-    // 💡 為了避免與全世界其他用這個代碼的人搞混，這裡建一個專屬咪咪的雲端資料庫保險庫名稱
-    const CLOUD_BIN_ID = "mimi_meds_shared_database_2026"; 
-    const API_URL = `https://api.jsonbin.io/v3/b/668bb5aae41b4d34e40ed887`; // 內建免費公用通道
+    // 使用免費穩定的專屬大保險箱通道
+    const API_URL = "https://kvdb.io/MN7Sgsh66wz6gYVv7K7M3H/mimi_meds_shared_2026";
 
     const today = new Date();
     const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
@@ -368,18 +388,20 @@
     window.onload = function() {
         loadCloudData();
         setupLongPress();
-        // 每 30 秒自動偷偷在背後重新整理一次，防止家人同時點擊沒看見
-        setInterval(loadCloudData, 30000); 
+        // 每 15 秒自動在背景重新整理，減少不同步的時間差
+        setInterval(loadCloudData, 15000); 
     };
 
-    // 從雲端載入資料
+    // 從雲端抓資料
     function loadCloudData() {
         showStatus("☁️ 雲端同步中...");
-        fetch(`https://api.jsonstorage.net/v1/json/00000000-0000-0000-0000-000000000000/${CLOUD_BIN_ID}`)
-        .then(res => res.json())
+        fetch(API_URL)
+        .then(res => {
+            if(!res.ok) throw new Error();
+            return res.json();
+        })
         .then(data => {
             if (data) {
-                // 恢復今日勾選狀態
                 const todayState = data.today || {};
                 const slots = document.querySelectorAll('.slot');
                 slots.forEach(slot => {
@@ -389,25 +411,24 @@
                         setSlotAsReset(slot.id);
                     }
                 });
-                // 恢復歷史紀錄
                 window.cloudHistory = data.history || [];
                 updateHistoryDisplay(window.cloudHistory);
                 showStatus("✓ 雲端資料已是最新");
             }
         })
-        .catch(err => {
-            // 如果雲端尚未建立，先拿本機替代
+        .catch(() => {
+            // 雲端連不上時的本地備份
             const localState = JSON.parse(localStorage.getItem('mimiMedRecordsTime版')) || {};
             for (const id in localState) {
                 if (localState[id].taken) setSlotAsTaken(id, localState[id].time);
             }
             window.cloudHistory = JSON.parse(localStorage.getItem('mimiMedHistoryTime版')) || [];
             updateHistoryDisplay(window.cloudHistory);
-            showStatus("⚠️ 網路延遲，目前顯示本地快取");
+            showStatus("⚠️ 網路延遲，目前為本地顯示");
         });
     }
 
-    // 將最新狀態存回雲端
+    // 存回雲端
     function saveCloudState() {
         showStatus("📤 正在同步到家人的手機...");
         const slots = document.querySelectorAll('.slot');
@@ -418,14 +439,11 @@
             todayState[slot.id] = { taken: isTaken, time: isTaken ? timeVal : '' };
         });
 
-        // 存入本機備份
         localStorage.setItem('mimiMedRecordsTime版', JSON.stringify(todayState));
-
         const payload = { today: todayState, history: window.cloudHistory || [] };
 
-        fetch(`https://api.jsonstorage.net/v1/json/00000000-0000-0000-0000-000000000000/${CLOUD_BIN_ID}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+        fetch(API_URL, {
+            method: 'POST',
             body: JSON.stringify(payload)
         })
         .then(() => showStatus("✓ 全家同步成功"))
