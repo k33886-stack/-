@@ -280,13 +280,13 @@
                 <span class="slot-time">早上 ☀️</span>
                 <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveCloudData()">
-                <button class="med-btn" onclick="toggleMed('med1-morning')">吃藥了</button>
+                <button class="med-btn" onclick="toggleMed(event, 'med1-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med1-night">
                 <span class="slot-time">晚上 🌙</span>
                 <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveCloudData()">
-                <button class="med-btn" onclick="toggleMed('med1-night')">吃藥了</button>
+                <button class="med-btn" onclick="toggleMed(event, 'med1-night')">吃藥了</button>
             </div>
         </div>
     </div>
@@ -301,19 +301,19 @@
                 <span class="slot-time">早上 07:00 ⏰</span>
                 <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveCloudData()">
-                <button class="med-btn" onclick="toggleMed('med2-07')">吃藥了</button>
+                <button class="med-btn" onclick="toggleMed(event, 'med2-07')">吃藥了</button>
             </div>
             <div class="slot" id="med2-15">
                 <span class="slot-time">下午 15:00 ⏰</span>
                 <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveCloudData()">
-                <button class="med-btn" onclick="toggleMed('med2-15')">吃藥了</button>
+                <button class="med-btn" onclick="toggleMed(event, 'med2-15')">吃藥了</button>
             </div>
             <div class="slot" id="med2-23">
                 <span class="slot-time">晚上 23:00 ⏰</span>
                 <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveCloudData()">
-                <button class="med-btn" onclick="toggleMed('med2-23')">吃藥了</button>
+                <button class="med-btn" onclick="toggleMed(event, 'med2-23')">吃藥了</button>
             </div>
         </div>
     </div>
@@ -328,7 +328,7 @@
                 <span class="slot-time">晚上 🌙</span>
                 <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveCloudData()">
-                <button class="med-btn" onclick="toggleMed('med3-night')">吃藥了</button>
+                <button class="med-btn" onclick="toggleMed(event, 'med3-night')">吃藥了</button>
             </div>
         </div>
     </div>
@@ -343,13 +343,13 @@
                 <span class="slot-time">早上 ☀️</span>
                 <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveCloudData()">
-                <button class="med-btn" onclick="toggleMed('med4-morning')">吃藥了</button>
+                <button class="med-btn" onclick="toggleMed(event, 'med4-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med4-night">
                 <span class="slot-time">晚上 🌙</span>
                 <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveCloudData()">
-                <button class="med-btn" onclick="toggleMed('med4-night')">吃藥了</button>
+                <button class="med-btn" onclick="toggleMed(event, 'med4-night')">吃藥了</button>
             </div>
         </div>
     </div>
@@ -368,7 +368,6 @@
 </div>
 
 <script>
-    // 使用標準 REST 通訊協定，繞過任何可能封鎖連線的設定，確保全設備通暢
     const API_URL = "https://mimi-meds-default-rtdb.asia-southeast1.firebasedatabase.app/mimi_shared_v2.json";
 
     const today = new Date();
@@ -380,7 +379,6 @@
     window.onload = function() {
         loadCloudData();
         setupLongPress();
-        // 每 5 秒極速輪詢，讓手機與電腦在幾秒內絕對能看到同步結果
         setInterval(loadCloudData, 5000);
     };
 
@@ -422,14 +420,20 @@
         const payload = { today: todayState, history: windowCloudHistory };
 
         fetch(API_URL, {
-            method: 'PUT', // 使用 PUT 完整蓋寫確保資料結構百分之百正確
+            method: 'PUT',
             body: JSON.stringify(payload)
         })
         .then(() => showStatus("✓ 雲端同步成功"))
         .catch(() => showStatus("❌ 同步失敗"));
     }
 
-    function toggleMed(slotId) {
+    function toggleMed(event, slotId) {
+        // 防止事件往外冒泡傳給格子，阻斷長按判定打架
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        
         const slot = document.getElementById(slotId);
         if (slot.classList.contains('taken')) return;
 
@@ -460,16 +464,23 @@
         const slots = document.querySelectorAll('.slot');
         slots.forEach(slot => {
             let pressTimer;
+            
             const start = (e) => {
-                if (!slot.classList.contains('taken') || e.target.classList.contains('time-input')) return;
-                pressTimer = window.setTimeout(() => cancelMed(slot.id), 1000);
+                // 只有「已經被勾選為吃藥」的狀態才允許啟動長按取消判定
+                if (!slot.classList.contains('taken') || e.target.classList.contains('time-input') || e.target.classList.contains('med-btn')) {
+                    return;
+                }
+                pressTimer = window.setTimeout(() => cancelMed(slot.id), 800);
             };
+            
             const stop = () => clearTimeout(pressTimer);
+            
             slot.addEventListener('mousedown', start);
             slot.addEventListener('mouseup', stop);
             slot.addEventListener('mouseleave', stop);
             slot.addEventListener('touchstart', start);
             slot.addEventListener('touchend', stop);
+            slot.addEventListener('touchmove', stop); // 手指滑動也算取消長按，避免誤判
         });
     }
 
