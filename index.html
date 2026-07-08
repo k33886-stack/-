@@ -8,7 +8,8 @@
         :root {
             --primary-color: #ff9999;
             --secondary-color: #ffe6e6;
-            --success-color: #a8e6cf;
+            --success-color: #e8f5e9;
+            --success-border: #81c784;
             --text-color: #4a4a4a;
         }
 
@@ -30,6 +31,7 @@
             padding: 20px;
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-sizing: border-box;
         }
 
         h1 {
@@ -60,6 +62,22 @@
             margin-bottom: 10px;
         }
 
+        .med-img-container {
+            width: 100%;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .med-img {
+            max-width: 100%;
+            max-height: 180px;
+            border-radius: 8px;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            object-fit: cover;
+            background-color: #f0f0f0; 
+        }
+
         .time-slots {
             display: flex;
             flex-wrap: wrap;
@@ -68,7 +86,7 @@
 
         .slot {
             flex: 1;
-            min-width: 120px;
+            min-width: 130px;
             background: white;
             border: 2px solid var(--primary-color);
             padding: 10px;
@@ -83,13 +101,26 @@
 
         .slot.taken {
             background-color: var(--success-color);
-            border-color: #81c784;
-            opacity: 0.7;
+            border-color: var(--success-border);
         }
 
         .slot-time {
             font-size: 0.9rem;
             font-weight: bold;
+        }
+
+        .time-input {
+            font-size: 0.9rem;
+            padding: 3px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+            width: 80px;
+            display: none;
+        }
+
+        .slot.taken .time-input {
+            display: block;
         }
 
         .med-btn {
@@ -109,28 +140,93 @@
         }
 
         .slot.taken .med-btn {
-            background-color: #81c784;
-            cursor: default;
+            display: none;
         }
 
         .reset-container {
             text-align: center;
             margin-top: 25px;
+            margin-bottom: 30px;
         }
 
         .reset-btn {
-            background-color: #4a4a4a;
+            background-color: #ff6b6b;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             font-size: 1rem;
-            border-radius: 20px;
+            border-radius: 25px;
             cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
         .reset-btn:hover {
-            background-color: #333;
+            background-color: #e55b5b;
+        }
+
+        .history-card {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .history-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .clear-history-btn {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 0.85rem;
+        }
+
+        .clear-history-btn:hover {
+            color: #ff6b6b;
+        }
+
+        .history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 12px 0;
+            border-bottom: 2px solid #eee;
+            font-size: 0.95rem;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-date-row {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            color: #ff6b6b;
+            margin-bottom: 5px;
+        }
+
+        .history-details {
+            font-size: 0.85rem;
+            color: #666;
+            padding-left: 10px;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -140,122 +236,218 @@
     <h1>🐱 咪咪的每日用藥紀錄表</h1>
     <div class="date-display" id="currentDate">今日日期：</div>
 
-    <div class="med-card">
+    <div class="med-card" data-med-name="癲癇+鉀+維他命">
         <div class="med-title">1. 癲癇藥 + 鉀離子 + 維他命 (早晚各1顆)</div>
+        <div class="med-img-container">
+            <img src="med1.jpg.heic" alt="藥物照片" class="med-img" onerror="this.src='med1.jpg.HEIC'; this.onerror=function(){this.style.display='none';};">
+        </div>
         <div class="time-slots">
             <div class="slot" id="med1-morning">
                 <span class="slot-time">早上 ☀️</span>
+                <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med1-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med1-night">
                 <span class="slot-time">晚上 🌙</span>
+                <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med1-night')">吃藥了</button>
             </div>
         </div>
     </div>
 
-    <div class="med-card">
+    <div class="med-card" data-med-name="癲癇+腸胃蠕動">
         <div class="med-title">2. 癲癇藥 + 腸胃蠕動 (每8小時1顆)</div>
+        <div class="med-img-container">
+            <img src="med2.jpg.heic" alt="藥物照片" class="med-img" onerror="this.style.display='none';">
+        </div>
         <div class="time-slots">
             <div class="slot" id="med2-07">
                 <span class="slot-time">早上 07:00 ⏰</span>
+                <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med2-07')">吃藥了</button>
             </div>
             <div class="slot" id="med2-15">
                 <span class="slot-time">下午 15:00 ⏰</span>
+                <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med2-15')">吃藥了</button>
             </div>
             <div class="slot" id="med2-23">
                 <span class="slot-time">晚上 23:00 ⏰</span>
+                <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med2-23')">吃藥了</button>
             </div>
         </div>
     </div>
 
-    <div class="med-card">
+    <div class="med-card" data-med-name="高血壓藥">
         <div class="med-title">3. 高血壓藥 (晚上1顆)</div>
+        <div class="med-img-container">
+            <img src="med3.jpg.heic" alt="藥物照片" class="med-img" onerror="this.style.display='none';">
+        </div>
         <div class="time-slots">
             <div class="slot" id="med3-night">
                 <span class="slot-time">晚上 🌙</span>
+                <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med3-night')">吃藥了</button>
             </div>
         </div>
     </div>
 
-    <div class="med-card">
-        <div class="med-title">4. 中藥 (早晚各1包 / 每包2顆)</div>
+    <div class="med-card" data-med-name="中藥">
+        <div class="med-title">4. 中藥 (早晚各1包)</div>
+        <div class="med-img-container">
+            <img src="med4.jpg.HEIC" alt="藥物照片" class="med-img" onerror="this.src='med4.jpg.heic'; this.onerror=function(){this.style.display='none';};">
+        </div>
         <div class="time-slots">
             <div class="slot" id="med4-morning">
                 <span class="slot-time">早上 ☀️</span>
+                <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med4-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med4-night">
                 <span class="slot-time">晚上 🌙</span>
+                <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med4-night')">吃藥了</button>
             </div>
         </div>
     </div>
 
     <div class="reset-container">
-        <button class="reset-btn" onclick="resetAll()">☀️ 開啟新的一天 (重設紀錄)</button>
+        <button class="reset-btn" onclick="archiveAndReset()">💾 結算今日並開啟新的一天</button>
+    </div>
+
+    <div class="history-card">
+        <div class="history-title">
+            <span>📅 歷史用藥日誌 (含詳細時間)</span>
+            <button class="clear-history-btn" onclick="clearHistory()">清空歷史</button>
+        </div>
+        <ul class="history-list" id="historyList"></ul>
     </div>
 </div>
 
 <script>
-    // 顯示今日日期
     const today = new Date();
-    document.getElementById('currentDate').innerText = `今日日期：${today.getFullYear()} 年 ${today.getMonth() + 1} 月 ${today.getDate()} 日`;
+    const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+    document.getElementById('currentDate').innerText = `今日日期：${dateString}`;
 
-    // 網頁載入時，從瀏覽器暫存(LocalStorage)讀取紀錄
     window.onload = function() {
-        const savedState = JSON.parse(localStorage.getItem('mimiMedRecords')) || {};
+        const savedState = JSON.parse(localStorage.getItem('mimiMedRecordsTime版')) || {};
         for (const id in savedState) {
-            if (savedState[id]) {
-                setSlotAsTaken(id);
+            if (savedState[id].taken) {
+                setSlotAsTaken(id, savedState[id].time);
             }
         }
+        updateHistoryDisplay();
     };
 
-    // 切換吃藥狀態
     function toggleMed(slotId) {
         const slot = document.getElementById(slotId);
-        // 如果已經吃過了就不重複觸發
         if (slot.classList.contains('taken')) return;
 
-        setSlotAsTaken(slotId);
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const currentTime = `${hours}:${minutes}`;
+
+        setSlotAsTaken(slotId, currentTime);
         saveState();
     }
 
-    // 將時段改為「已服用」樣式
-    function setSlotAsTaken(slotId) {
+    function setSlotAsTaken(slotId, timeValue) {
         const slot = document.getElementById(slotId);
         if (slot) {
             slot.classList.add('taken');
-            const btn = slot.querySelector('.med-btn');
-            btn.innerText = '✓ 已吃藥';
+            const input = slot.querySelector('.time-input');
+            input.value = timeValue;
         }
     }
 
-    // 儲存狀態到瀏覽器暫存
     function saveState() {
         const slots = document.querySelectorAll('.slot');
         const state = {};
         slots.forEach(slot => {
-            state[slot.id] = slot.classList.contains('taken');
+            const isTaken = slot.classList.contains('taken');
+            const timeVal = slot.querySelector('.time-input').value;
+            state[slot.id] = {
+                taken: isTaken,
+                time: isTaken ? timeVal : ''
+            };
         });
-        localStorage.setItem('mimiMedRecords', JSON.stringify(state));
+        localStorage.setItem('mimiMedRecordsTime版', JSON.stringify(state));
     }
 
-    // 重置所有紀錄
-    function resetAll() {
-        if (confirm('確定要清除今天的紀錄，開啟新的一天嗎？')) {
+    function archiveAndReset() {
+        const cards = document.querySelectorAll('.med-card');
+        let detailsText = '';
+        let totalCount = 0;
+        let takenCount = 0;
+
+        cards.forEach(card => {
+            const medName = card.getAttribute('data-med-name');
+            const slots = card.querySelectorAll('.slot');
+            let medDetails = [];
+
+            slots.forEach(slot => {
+                totalCount++;
+                const label = slot.querySelector('.slot-time').innerText.split(' ')[0];
+                if (slot.classList.contains('taken')) {
+                    takenCount++;
+                    const time = slot.querySelector('.time-input').value;
+                    medDetails.push(`${label}(${time})`);
+                }
+            });
+
+            if (medDetails.length > 0) {
+                detailsText += `• ${medName}: ${medDetails.join(', ')}<br>`;
+            } else {
+                detailsText += `• ${medName}: 未服藥<br>`;
+            }
+        });
+
+        if (confirm(`確定要結算今日用藥嗎？\n今日共服藥 ${takenCount}/${totalCount} 次。`)) {
+            const history = JSON.parse(localStorage.getItem('mimiMedHistoryTime版')) || [];
+            history.unshift({
+                date: dateString,
+                score: `${takenCount}/${totalCount}`,
+                details: detailsText
+            });
+            localStorage.setItem('mimiMedHistoryTime版', JSON.stringify(history));
+
             const slots = document.querySelectorAll('.slot');
             slots.forEach(slot => {
                 slot.classList.remove('taken');
-                const btn = slot.querySelector('.med-btn');
-                btn.innerText = '吃藥了';
+                slot.querySelector('.time-input').value = '';
             });
-            localStorage.removeItem('mimiMedRecords');
+            localStorage.removeItem('mimiMedRecordsTime版');
+
+            updateHistoryDisplay();
+        }
+    }
+
+    function updateHistoryDisplay() {
+        const historyList = document.getElementById('historyList');
+        const history = JSON.parse(localStorage.getItem('mimiMedHistoryTime版')) || [];
+        
+        if (history.length === 0) {
+            historyList.innerHTML = '<li class="history-item" style="color:#aaa; text-align:center;">暫無歷史紀錄</li>';
+            return;
+        }
+
+        historyList.innerHTML = history.map(item => `
+            <li class="history-item">
+                <div class="history-date-row">
+                    <span>📆 ${item.date}</span>
+                    <span>得分：${item.score}</span>
+                </div>
+                <div class="history-details">${item.details}</div>
+            </li>
+        `).join('');
+    }
+
+    function clearHistory() {
+        if (confirm('確定要清空所有的詳細用藥紀錄嗎？此操作無法恢復喔！')) {
+            localStorage.removeItem('mimiMedHistoryTime版');
+            updateHistoryDisplay();
         }
     }
 </script>
