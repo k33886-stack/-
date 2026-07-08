@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>咪咪的每日用藥紀錄表 (Firebase 雲端完美版)</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <title>咪咪的每日用藥紀錄表 (通用雲端版)</title>
     <style>
         :root {
             --primary-color: #ff9999;
@@ -268,7 +266,7 @@
 <div class="container">
     <h1>🐱 咪咪的每日用藥紀錄表</h1>
     <div class="sync-bar">
-        <div class="sync-status" id="syncStatus">☁️ 正在連線至 Google 雲端庫...</div>
+        <div class="sync-status" id="syncStatus">☁️ 雲端同步就緒</div>
     </div>
     <div class="date-display" id="currentDate">今日日期：</div>
 
@@ -281,13 +279,13 @@
             <div class="slot" id="med1-morning">
                 <span class="slot-time">早上 ☀️</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveStateToFirebase()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med1-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med1-night">
                 <span class="slot-time">晚上 🌙</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveStateToFirebase()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med1-night')">吃藥了</button>
             </div>
         </div>
@@ -302,19 +300,19 @@
             <div class="slot" id="med2-07">
                 <span class="slot-time">早上 07:00 ⏰</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveStateToFirebase()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med2-07')">吃藥了</button>
             </div>
             <div class="slot" id="med2-15">
                 <span class="slot-time">下午 15:00 ⏰</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveStateToFirebase()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med2-15')">吃藥了</button>
             </div>
             <div class="slot" id="med2-23">
                 <span class="slot-time">晚上 23:00 ⏰</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveStateToFirebase()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med2-23')">吃藥了</button>
             </div>
         </div>
@@ -329,7 +327,7 @@
             <div class="slot" id="med3-night">
                 <span class="slot-time">晚上 🌙</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveStateToFirebase()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med3-night')">吃藥了</button>
             </div>
         </div>
@@ -344,13 +342,13 @@
             <div class="slot" id="med4-morning">
                 <span class="slot-time">早上 ☀️</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveStateToFirebase()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med4-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med4-night">
                 <span class="slot-time">晚上 🌙</span>
                 <span class="hint-text">(長按可取消)</span>
-                <input type="time" class="time-input" onchange="saveStateToFirebase()">
+                <input type="time" class="time-input" onchange="saveCloudData()">
                 <button class="med-btn" onclick="toggleMed('med4-night')">吃藥了</button>
             </div>
         </div>
@@ -370,30 +368,30 @@
 </div>
 
 <script>
-    // 🔒 註冊專屬咪咪的免費 Google Firebase 資料庫通道
-    const firebaseConfig = {
-        databaseURL: "https://mimi-meds-default-rtdb.asia-southeast1.firebasedatabase.app/"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database().ref("mimi_shared_data");
+    // 使用標準 REST 通訊協定，繞過任何可能封鎖連線的設定，確保全設備通暢
+    const API_URL = "https://mimi-meds-default-rtdb.asia-southeast1.firebasedatabase.app/mimi_shared_v2.json";
 
     const today = new Date();
     const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
     document.getElementById('currentDate').innerText = `今日日期：${dateString}`;
 
-    let globalHistory = [];
+    let windowCloudHistory = [];
 
     window.onload = function() {
+        loadCloudData();
         setupLongPress();
-        
-        // ⚡ 核心秘密：監聽雲端資料庫，只要雲端有任何變動，全家手機不用重新整理，1秒內自動更新！
-        db.on('value', (snapshot) => {
-            const data = snapshot.val();
+        // 每 5 秒極速輪詢，讓手機與電腦在幾秒內絕對能看到同步結果
+        setInterval(loadCloudData, 5000);
+    };
+
+    function loadCloudData() {
+        fetch(API_URL)
+        .then(res => res.json())
+        .then(data => {
             if (data) {
                 const todayState = data.today || {};
-                globalHistory = data.history || [];
+                windowCloudHistory = data.history || [];
                 
-                // 更新今日勾選狀態
                 const slots = document.querySelectorAll('.slot');
                 slots.forEach(slot => {
                     if (todayState[slot.id] && todayState[slot.id].taken) {
@@ -402,18 +400,17 @@
                         setSlotAsReset(slot.id);
                     }
                 });
-                
-                // 更新歷史日誌
-                updateHistoryDisplay(globalHistory);
-                showStatus("✓ 雲端即時連線中 (全家已同步)");
-            } else {
-                showStatus("✓ 雲端就緒 (暫無資料)");
+                updateHistoryDisplay(windowCloudHistory);
+                showStatus("✓ 雲端資料同步中");
             }
+        })
+        .catch(() => {
+            showStatus("⚠️ 網路重連中...");
         });
-    };
+    }
 
-    function saveStateToFirebase() {
-        showStatus("📤 正在即時同步至全家設備...");
+    function saveCloudData() {
+        showStatus("📤 正在同步全家設備...");
         const slots = document.querySelectorAll('.slot');
         const todayState = {};
         slots.forEach(slot => {
@@ -422,7 +419,14 @@
             todayState[slot.id] = { taken: isTaken, time: isTaken ? timeVal : '' };
         });
 
-        db.update({ today: todayState });
+        const payload = { today: todayState, history: windowCloudHistory };
+
+        fetch(API_URL, {
+            method: 'PUT', // 使用 PUT 完整蓋寫確保資料結構百分之百正確
+            body: JSON.stringify(payload)
+        })
+        .then(() => showStatus("✓ 雲端同步成功"))
+        .catch(() => showStatus("❌ 同步失敗"));
     }
 
     function toggleMed(slotId) {
@@ -433,7 +437,7 @@
         const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
         setSlotAsTaken(slotId, currentTime);
-        saveStateToFirebase();
+        saveCloudData();
     }
 
     function setSlotAsTaken(slotId, timeValue) {
@@ -470,9 +474,9 @@
     }
 
     function cancelMed(slotId) {
-        if (confirm('確定要取消此時段的服藥紀錄嗎？\n這會同時取消全家人手機上的狀態喔！')) {
+        if (confirm('確定要取消此時段的服藥紀錄嗎？')) {
             setSlotAsReset(slotId);
-            saveStateToFirebase();
+            saveCloudData();
         }
     }
 
@@ -496,20 +500,13 @@
             detailsText += `• ${medName}: ${medDetails.length > 0 ? medDetails.join(', ') : '未服藥'}<br>`;
         });
 
-        if (confirm(`確定要結算今日用藥嗎？\n歷史紀錄會永久上傳 Google 雲端，且全家設備的畫面都會清空開啟新的一天！`)) {
-            // 將新紀錄推入雲端歷史陣列的最前端
-            globalHistory.unshift({ date: dateString, score: `${takenCount}/${totalCount}`, details: detailsText });
+        if (confirm(`確定要結算今日用藥嗎？\n歷史紀錄會永久儲存至雲端。`)) {
+            windowCloudHistory.unshift({ date: dateString, score: `${takenCount}/${totalCount}`, details: detailsText });
             
-            // 重置所有格子
             const slots = document.querySelectorAll('.slot');
-            const emptyToday = {};
-            slots.forEach(slot => {
-                emptyToday[slot.id] = { taken: false, time: '' };
-            });
-
-            // 一次性把「空的新一天」和「新歷史」打包推上 Firebase
-            db.set({ today: emptyToday, history: globalHistory })
-            .then(() => alert("結算成功！已永久存入雲端紀錄。"));
+            slots.forEach(slot => setSlotAsReset(slot.id));
+            
+            saveCloudData();
         }
     }
 
@@ -528,8 +525,9 @@
     }
 
     function clearHistory() {
-        if (confirm('確定要清空雲端上所有的歷史紀錄嗎？清空後全家人那邊都會一起消失喔！')) {
-            db.child('history').remove();
+        if (confirm('確定要清空所有的歷史紀錄嗎？')) {
+            windowCloudHistory = [];
+            saveCloudData();
         }
     }
 
