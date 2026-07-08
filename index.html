@@ -22,6 +22,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            -webkit-user-select: none; /* 為了防止手機長按時彈出系統選單 */
+            user-select: none;
         }
 
         .container {
@@ -97,6 +99,7 @@
             justify-content: space-between;
             gap: 8px;
             transition: all 0.3s;
+            cursor: pointer;
         }
 
         .slot.taken {
@@ -107,6 +110,17 @@
         .slot-time {
             font-size: 0.9rem;
             font-weight: bold;
+        }
+
+        .hint-text {
+            font-size: 0.75rem;
+            color: #81c784;
+            display: none;
+            font-weight: normal;
+        }
+
+        .slot.taken .hint-text {
+            display: block;
         }
 
         .time-input {
@@ -244,11 +258,13 @@
         <div class="time-slots">
             <div class="slot" id="med1-morning">
                 <span class="slot-time">早上 ☀️</span>
+                <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med1-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med1-night">
                 <span class="slot-time">晚上 🌙</span>
+                <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med1-night')">吃藥了</button>
             </div>
@@ -263,16 +279,19 @@
         <div class="time-slots">
             <div class="slot" id="med2-07">
                 <span class="slot-time">早上 07:00 ⏰</span>
+                <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med2-07')">吃藥了</button>
             </div>
             <div class="slot" id="med2-15">
                 <span class="slot-time">下午 15:00 ⏰</span>
+                <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med2-15')">吃藥了</button>
             </div>
             <div class="slot" id="med2-23">
                 <span class="slot-time">晚上 23:00 ⏰</span>
+                <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med2-23')">吃藥了</button>
             </div>
@@ -287,6 +306,7 @@
         <div class="time-slots">
             <div class="slot" id="med3-night">
                 <span class="slot-time">晚上 🌙</span>
+                <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med3-night')">吃藥了</button>
             </div>
@@ -301,11 +321,13 @@
         <div class="time-slots">
             <div class="slot" id="med4-morning">
                 <span class="slot-time">早上 ☀️</span>
+                <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med4-morning')">吃藥了</button>
             </div>
             <div class="slot" id="med4-night">
                 <span class="slot-time">晚上 🌙</span>
+                <span class="hint-text">(長按可取消)</span>
                 <input type="time" class="time-input" onchange="saveState()">
                 <button class="med-btn" onclick="toggleMed('med4-night')">吃藥了</button>
             </div>
@@ -338,6 +360,7 @@
             }
         }
         updateHistoryDisplay();
+        setupLongPress();
     };
 
     function toggleMed(slotId) {
@@ -362,7 +385,6 @@
         }
     }
 
-    // 儲存狀態
     function saveState() {
         const slots = document.querySelectorAll('.slot');
         const state = {};
@@ -377,7 +399,43 @@
         localStorage.setItem('mimiMedRecordsTime版', JSON.stringify(state));
     }
 
-    // 結算並重置
+    // 新增：設定長按收回事件
+    function setupLongPress() {
+        const slots = document.querySelectorAll('.slot');
+        slots.forEach(slot => {
+            let pressTimer;
+
+            // 電腦滑鼠事件
+            slot.addEventListener('mousedown', (e) => {
+                if (!slot.classList.contains('taken') || e.target.classList.contains('time-input')) return;
+                pressTimer = window.setTimeout(() => {
+                    cancelMed(slot.id);
+                }, 1000);
+            });
+            slot.addEventListener('mouseup', () => { clearTimeout(pressTimer); });
+            slot.addEventListener('mouseleave', () => { clearTimeout(pressTimer); });
+
+            // 手機觸控事件
+            slot.addEventListener('touchstart', (e) => {
+                if (!slot.classList.contains('taken') || e.target.classList.contains('time-input')) return;
+                pressTimer = window.setTimeout(() => {
+                    cancelMed(slot.id);
+                }, 1000);
+            });
+            slot.addEventListener('touchend', () => { clearTimeout(pressTimer); });
+        });
+    }
+
+    // 新增：取消服藥狀態的動作
+    function cancelMed(slotId) {
+        if (confirm('確定要取消此時段的服藥紀錄（變回未吃藥）嗎？')) {
+            const slot = document.getElementById(slotId);
+            slot.classList.remove('taken');
+            slot.querySelector('.time-input').value = '';
+            saveState();
+        }
+    }
+
     function archiveAndReset() {
         const cards = document.querySelectorAll('.med-card');
         let detailsText = '';
