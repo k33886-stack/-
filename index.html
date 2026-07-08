@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>咪咪的每日用藥紀錄表 (通用雲端版)</title>
+    <title>咪咪的每日用藥紀錄表 (完美雲端同步版)</title>
     <style>
         :root {
             --primary-color: #ff9999;
@@ -375,42 +375,48 @@
     document.getElementById('currentDate').innerText = `今日日期：${dateString}`;
 
     let windowCloudHistory = [];
-    let isSaving = false; // 🔒 智慧防搶拍鎖狀態
+    let lockTimer = null; 
 
     window.onload = function() {
-        loadCloudData();
+        loadCloudData(true); 
         setupLongPress();
         
-        // 每 4 秒自動同步
         setInterval(() => {
-            // 如果當下正在儲存資料，強行暫停自動整理，避免被舊資料蓋過去
-            if (!isSaving) {
-                loadCloudData();
-            }
+            loadCloudData(false); 
         }, 4000);
     };
 
-    function loadCloudData() {
-        if (isSaving) return; // 雙重保護
+    function loadCloudData(forceObj) {
+        if (lockTimer !== null && !forceObj) return;
 
+        showStatus("🔄 雲端同步中...");
         fetch(API_URL)
         .then(res => res.json())
         .then(data => {
-            if (isSaving) return; // 讀取完畢時如果剛好在存檔，也直接放棄這次讀取
+            if (lockTimer !== null && !forceObj) return;
+
             if (data) {
                 const todayState = data.today || {};
                 windowCloudHistory = data.history || [];
                 
                 const slots = document.querySelectorAll('.slot');
                 slots.forEach(slot => {
-                    if (todayState[slot.id] && todayState[slot.id].taken) {
-                        setSlotAsTaken(slot.id, todayState[slot.id].time);
-                    } else {
-                        setSlotAsReset(slot.id);
+                    const serverIsTaken = !!(todayState[slot.id] && todayState[slot.id].taken);
+                    const serverTime = serverIsTaken ? todayState[slot.id].time : '';
+                    
+                    const localIsTaken = slot.classList.contains('taken');
+                    const localTime = slot.querySelector('.time-input').value;
+
+                    if (serverIsTaken !== localIsTaken || serverTime !== localTime) {
+                        if (serverIsTaken) {
+                            setSlotAsTaken(slot.id, serverTime);
+                        } else {
+                            setSlotAsReset(slot.id);
+                        }
                     }
                 });
                 updateHistoryDisplay(windowCloudHistory);
-                showStatus("✓ 雲端資料同步中");
+                showStatus("✓ 雲端同步成功");
             }
         })
         .catch(() => {
@@ -419,7 +425,12 @@
     }
 
     function saveCloudData() {
-        isSaving = true; // 🔒 開啟防搶拍鎖
+        if (lockTimer) clearTimeout(lockTimer);
+        
+        lockTimer = setTimeout(() => {
+            lockTimer = null;
+        }, 3000);
+
         showStatus("📤 正在同步全家設備...");
 
         const slots = document.querySelectorAll('.slot');
@@ -438,14 +449,9 @@
         })
         .then(() => {
             showStatus("✓ 雲端同步成功");
-            // 延遲 1.5 秒再解除鎖定，留時間給 Google 雲端庫完全寫入完畢
-            setTimeout(() => {
-                isSaving = false;
-            }, 1500);
         })
         .catch(() => {
             showStatus("❌ 同步失敗");
-            isSaving = false;
         });
     }
 
@@ -480,11 +486,14 @@
         const slots = document.querySelectorAll('.slot');
         slots.forEach(slot => {
             let pressTimer;
-            const start = (e) => {
-                if (!slot.classList.contains('taken') || e.target.classList.contains('time-input')) return;
+            
+            // 徹底移除 e 的綁定，純粹靠狀態判斷
+            const start = () => {
+                if (!slot.classList.contains('taken')) return;
                 pressTimer = window.setTimeout(() => cancelMed(slot.id), 1000);
             };
             const stop = () => clearTimeout(pressTimer);
+            
             slot.addEventListener('mousedown', start);
             slot.addEventListener('mouseup', stop);
             slot.addEventListener('mouseleave', stop);
